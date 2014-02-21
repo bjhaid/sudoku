@@ -16,10 +16,10 @@ class sudoku(object):
     def print_grid(self):
         row_counter = 1
         for row in self.grid:
-            if row_counter == 4 or row_counter == 7: print ("_" * 25)
+            if row_counter == 4 or row_counter == 7: print >> self.output, "_" * 25
             row.insert(3, " | ")
             row.insert(7, " | ")
-            self.output.write(" ".join(map(str,row)) + "\n")
+            print >> self.output, " ".join(map(str,row))
             row_counter += 1
 
 
