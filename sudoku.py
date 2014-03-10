@@ -1,11 +1,45 @@
 import sys
 import re
 
+class Cell(object):
+    def __init__(self, x,y,value):
+        x,y,value = map(int, (x,y,value))
+        self._x = x
+        self._y = y
+        self._value = value
+
+    def __str__(self):
+        if self.value:
+            return str(self.value)
+        else:
+            return "_"
+
+    def __eq__(self,value):
+        return self.value == value.value
+
+    def __non__zero(self):
+        return not not self.value
+
+    def isEmpty(self):
+        return (not self.value)
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def value(self):
+        return self._value
+
 class Grid(object):
     def __init__(self,size):
         self._size = size
         self.inner = 0
-        self._grid = [["_"]*(size ** 2) for _ in range(9)]
+        self._grid = [ [Cell(i,j,0) for i in range(1, size ** 2 + 1)] for j in range(1, size ** 2 + 1)]
 
     def __getitem__(self, coord):
         x,y = map(int,coord)
@@ -13,21 +47,18 @@ class Grid(object):
 
     def __setitem__(self, coord, value):
         x,y = map(int,coord)
-        self._grid[x - 1][y - 1] = value
+        value = int(value)
+        cell = Cell(x,y,value)
+        self._grid[x - 1][y - 1] = cell
 
     def __iter__(self):
         return iter(self._grid)
 
-    def cell(self, *coord):
-        x,y = map(int,coord)
-        return self[x,y]
-
-    def row(self, *coord):
-        x,y = map(int,coord)
+    def row(self, x):
         return self._grid[x - 1]
 
     def inner_grid(self, *coord):
-        x,y = map(int,coord)
+        x,y = coord
         def f(v):
             div,mod = divmod(v,self._size)
             if mod:
@@ -40,25 +71,35 @@ class Grid(object):
         ending_y_index = f(y) + self._size
         return [ self._grid[i][j] for i in range(starting_x_index,ending_x_index) for j in range(starting_y_index,ending_y_index) ]
 
-    def column(self, *coord):
-        x,y = map(int,coord)
+    def column(self, y):
         return map(lambda f: f[y -1], self._grid)
 
     def valid(self,value,x,y):
-        return self._valid_for_row(value,x,y) and self._valid_for_column(value,x,y) and self._valid_for_inner_grid(value,x,y)
+        cell = Cell(x,y,value)
+        return self._valid_for_row(cell) and self._valid_for_column(cell) and self._valid_for_inner_grid(cell)
 
-    def _valid_for_row(self,value,x,y):
-        return value not in self.row(x,y)
+    def _valid_for_row(self,cell):
+        return cell not in self.row(cell.x)
 
-    def _valid_for_column(self,value,x,y):
-        return value not in self.column(x,y)
+    def _valid_for_column(self,cell):
+        return cell not in self.column(cell.y)
 
-    def _valid_for_inner_grid(self,value,x,y):
-        return value not in self.inner_grid(x,y)
+    def _valid_for_inner_grid(self,cell):
+        return cell not in self.inner_grid(cell.x,cell.y)
+
+    def flatten(self):
+        return [ j for i in self._grid for j in i ]
 
     @property
     def length(self):
         return len(self._grid)
+
+    @property
+    def isfilled(self):
+        return all(map(lambda cell: cell.value, self.flatten()))
+
+    def emptyCells(self):
+        return filter(lambda cell: cell.isEmpty(), self.flatten())
 
     def sample_filled_grid(self):
         for idx_i, i in enumerate(self):
@@ -71,14 +112,15 @@ class Sudoku(object):
     def __init__(self, grid_size, output = sys.stdout, _input = sys.stdin):
         self.output = output
         self._input = _input
+        self._possible_values = range(1,grid_size ** 2 + 1)
         self.grid_size = grid_size
         self.grid = Grid(grid_size)
 
     def print_grid(self):
         row_counter = 1
         for row in self.grid:
-            if row_counter == 4 or row_counter == 7: self._print("_" * 25)
-            line = row[0:3] + [" | "] + row[3:6] + [" | "] + row[6:]
+            if row_counter == self.grid_size + 1 or row_counter == (self.grid_size * 2) + 1: self._print("_" * 25)
+            line = row[0:self.grid_size] + [" | "] + row[self.grid_size:self.grid_size * 2] + [" | "] + row[self.grid_size * 2:]
             self._print(*line)
             row_counter += 1
 
@@ -88,10 +130,12 @@ class Sudoku(object):
     def accept_input(self):
         while True:
             value = self._input.readline().strip()
-            if re.match("ex|qu(?=it)", value, re.I):
+            if re.match("^(ex|qu)it$", value, re.I):
                 self._print("Goodbye!!!, thanks for playing Sudoku")
                 break
-            elif not re.match("\d:\d:\d",value):
+            elif re.match("solve", value, re.I):
+                self.solve()
+            elif not re.match("[1-9]:[1-9]:[1-9]",value):
                 self._print("Supply input in the form x:y:value, where x and y are coordinates")
             else:
                 x,y,val = value.split(":")
@@ -102,7 +146,25 @@ class Sudoku(object):
                 self.grid[x,y] = val
                 self.print_grid()
 
-g = Grid(3)
+    def solve(self):
+        emptyCells = self.grid.emptyCells()
+        while emptyCells:
+            print len(emptyCells)
+            if self.grid.isfilled: break
+            current_cell = emptyCells[0]
+            for i in self._possible_values:
+                if self.grid.valid(i,current_cell.x,current_cell.y):
+                    self.grid[current_cell.x,current_cell.y] = i
+                    del emptyCells[0]
+                    break
+            print self.grid[current_cell.x,current_cell.y].isEmpty()
+            if self.grid[current_cell.x,current_cell.y].isEmpty():
+                self._print("Unsolvable")
+                break
+        self.print_grid()
+
+c = Cell(1,2,0)
+print not c
 s = Sudoku(3)
 s.print_grid()
 #print "\\n"
