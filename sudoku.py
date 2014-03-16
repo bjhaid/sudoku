@@ -116,6 +116,11 @@ class Sudoku(object):
         self.grid_size = grid_size
         self.grid = Grid(grid_size)
 
+    def set_grid(self,arr):
+        for i in range(len(arr)):
+            for j in range(len(arr)):
+                self.grid[i+1, j+1] = arr[i][j]
+
     def print_grid(self):
         row_counter = 1
         for row in self.grid:
@@ -147,25 +152,34 @@ class Sudoku(object):
                 self.print_grid()
 
     def solve(self):
-        emptyCells = self.grid.emptyCells()
-        while emptyCells:
-            print len(emptyCells)
-            if self.grid.isfilled: break
-            current_cell = emptyCells[0]
-            for i in self._possible_values:
-                if self.grid.valid(i,current_cell.x,current_cell.y):
-                    self.grid[current_cell.x,current_cell.y] = i
-                    del emptyCells[0]
-                    break
-            print self.grid[current_cell.x,current_cell.y].isEmpty()
-            if self.grid[current_cell.x,current_cell.y].isEmpty():
+        loop_count = len(self.grid.emptyCells())
+        while not self.grid.isfilled:
+            if loop_count == 0:
                 self._print("Unsolvable")
                 break
+            max = self.grid_size ** 2 + 1
+            for cell in self.grid.emptyCells():
+                if not len(filter(lambda i: self.grid.valid(i,cell.x, cell.y), range(1,max))) > 1:
+                    for i in range(1,max):
+                        if self.grid.valid(i,cell.x,cell.y):
+                            self.grid[cell.x,cell.y] = i
+            loop_count -= 1
+
+
         self.print_grid()
 
-c = Cell(1,2,0)
-print not c
 s = Sudoku(3)
+# s.set_grid([
+#     [9,1,0,7,0,0,0,0,0],
+#     [0,3,2,6,0,0,0,8,0],
+#     [0,0,7,0,8,0,9,0,0],
+#     [0,8,6,0,3,0,1,7,0],
+#     [3,0,0,0,0,0,0,0,6],
+#     [0,5,1,0,2,0,8,4,0],
+#     [0,0,9,0,5,0,3,0,0],
+#     [0,2,0,3,0,1,4,9,0],
+#     [0,0,0,0,0,2,0,6,1]])
+
 s.print_grid()
 #print "\\n"
 s.accept_input()
